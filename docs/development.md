@@ -1,8 +1,8 @@
 # Development
-Blunder is developed on Linux (Ubuntu 24.04 +) and has no alternative build instructions.
+Blunder is developed on Linux (Ubuntu 25.10 +) and has no alternative build instructions.
 
 ## Requirements
-A machine capable of running Vulkan, and support for C++17.
+A machine capable of running Vulkan, and support for C++20.
 
 ## How to Build
 Ensure your system has the proper libraries.
