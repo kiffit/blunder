@@ -1,37 +1,28 @@
-cmake_minimum_required(VERSION 3.16)
-project(blunder LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.10)
+project(blunder)
 
-# C++ 20 for Vulkan RAII
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Output dirs
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+# Find OpenGL
+find_package(OpenGL REQUIRED)
 
-# Require dependencies
-find_package(Vulkan REQUIRED)
-find_package(glfw3 CONFIG REQUIRED)
-find_package(glm CONFIG REQUIRED)
+# Find GLFW (installed via system package manager)
+find_package(glfw3 3.3 REQUIRED)
 
-# Blunder
-add_executable(blunder
+# Add executable
+add_executable(app
     src/main.cpp
+    src/glad.c
+)
+
+# Include directories
+target_include_directories(app PRIVATE
+    include
 )
 
 # Link libraries
-target_link_libraries(blunder
-    PRIVATE
-        Vulkan::Vulkan
-        glfw
-        glm::glm
-)
-
-# Warnings for debugging
-target_compile_options(blunder PRIVATE
-    -Wall
-    -Wextra
-    -Wpedantic
+target_link_libraries(app
+    glfw
+    OpenGL::GL
 )
