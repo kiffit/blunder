@@ -11,7 +11,7 @@ void processInput(GLFWwindow *);
 
 int main()
 {
-    // Initialization
+    // GLFW initialization
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
@@ -26,7 +26,7 @@ int main()
     }
     glfwMakeContextCurrent(window);
 
-    // GLAD Initialization
+    // GLAD initialization
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
         std::cerr << "Failed to initialize GLAD!" << std::endl;
@@ -59,7 +59,8 @@ int main()
     return 0;
 }
 
-// Implementations
+// Function definitions
+
 void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
     glViewport(0, 0, width, height);
