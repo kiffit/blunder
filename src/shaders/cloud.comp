@@ -1,0 +1,25 @@
+#version 460 core
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(rgba16f, binding = 0) uniform image2D cloudImage;
+
+uniform float uTime;
+
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43750008.5453); }
+
+void main() {
+    ivec2 id = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size = imageSize(cloudImage);
+
+    if (id.x >= size.x || id.y >= size.y)
+        return;
+
+    vec2 uv = vec2(id) / vec2(size);
+
+    // Begin shader, with uv :)
+    float n = hash(uv * 10.0 + uTime * 0.000001);
+
+    // Output
+    imageStore(cloudImage, id, vec4(n, n, n, 1.0));
+}
