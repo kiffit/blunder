@@ -1,5 +1,8 @@
 #include "RenderComponent.hpp"
 
+// std::max
+#include <algorithm>
+
 // imgui imports
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
@@ -17,9 +20,7 @@ void initImgui(State &);
 void updateImgui(State &);
 
 // Window callback
-void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
-    glViewport(0, 0, width, height);
-}
+void framebuffer_size_callback(GLFWwindow *window, int width, int height) { glViewport(0, 0, width, height); }
 
 void RenderComponent::init(State &state) {
     glfwInit();
@@ -28,8 +29,7 @@ void RenderComponent::init(State &state) {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // Instantiate window
-    state.window = glfwCreateWindow(startingWidth, startingHeight, title,
-                                    nullptr, nullptr);
+    state.window = glfwCreateWindow(startingWidth, startingHeight, title, nullptr, nullptr);
     if (state.window == nullptr) {
         std::cerr << "Failed to initialize GLFW window!" << std::endl;
     }
@@ -49,8 +49,10 @@ void RenderComponent::init(State &state) {
     glfwSetFramebufferSizeCallback(state.window, framebuffer_size_callback);
 
     // Set dimension limits
-    glfwSetWindowSizeLimits(state.window, minWidth, minHeight, GLFW_DONT_CARE,
-                            GLFW_DONT_CARE);
+    glfwSetWindowSizeLimits(state.window, minWidth, minHeight, GLFW_DONT_CARE, GLFW_DONT_CARE);
+
+    // Optional: disable vsync
+    // glfwSwapInterval(0);
 
     // Initialize imgui
     initImgui(state);
@@ -58,7 +60,7 @@ void RenderComponent::init(State &state) {
 
 void RenderComponent::update(State &state) {
     // Rendering commands here
-    glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     // Render imgui
@@ -68,17 +70,14 @@ void RenderComponent::update(State &state) {
     glfwSwapBuffers(state.window);
 }
 
-// -- Extra: imgui --
-bool show_demo = true;
-bool enabled = false;
-float speed = 0.5f;
-int count = 5;
-int combo_current = 0;
-int list_current = 0;
-int radio = 0;
+// imgui variables
+constexpr int font_size = 14;
+constexpr int sidebar_width = 350;
 
-const char *combo_items[] = {"Easy", "Medium", "Hard"};
-const char *list_items[] = {"Apple", "Banana", "Orange", "Pear"};
+// Garbage fillers
+bool fakebool = false;
+int fakeint = 0;
+float fakefloat = 0;
 
 void initImgui(State &state) {
     IMGUI_CHECKVERSION();
@@ -86,34 +85,70 @@ void initImgui(State &state) {
     ImGuiIO &io = ImGui::GetIO();
     (void)io;
 
+    // Load font
+    io.Fonts->AddFontFromFileTTF("../include/imgui/misc/fonts/Roboto-Medium.ttf", font_size);
+
+    // Dark mode
     ImGui::StyleColorsDark();
+
+    // Initialize backends
     ImGui_ImplGlfw_InitForOpenGL(state.window, true);
-    ImGui_ImplOpenGL3_Init("#version 130");
+    ImGui_ImplOpenGL3_Init("#version 460");
 }
 
 void updateImgui(State &state) {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+    ImGuiIO &io = ImGui::GetIO();
 
-    // UI Begin
-    ImGui::Begin("Controls");
+    // Sidebar
+    ImGui::SetNextWindowPos(ImVec2(0, 0), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(sidebar_width, io.DisplaySize.y), ImGuiCond_Always);
 
-    ImGui::Checkbox("Enable Feature", &enabled);
-    ImGui::SliderFloat("Speed", &speed, 0.0f, 1.0f);
-    ImGui::SliderInt("Count", &count, 0, 100);
+    //  Flags, for keeping it a panel
+    ImGuiWindowFlags flags = ImGuiWindowFlags_AlwaysAutoResize;
 
-    ImGui::Combo("Difficulty", &combo_current, combo_items,
-                 IM_ARRAYSIZE(combo_items));
-    ImGui::ListBox("Fruits", &list_current, list_items,
-                   IM_ARRAYSIZE(list_items));
+    // Panel begin
+    ImGui::Begin("Blunder Options", nullptr, flags);
 
-    ImGui::RadioButton("Option A", &radio, 0);
-    ImGui::SameLine();
-    ImGui::RadioButton("Option B", &radio, 1);
+    // Cloud Settings
+    if (ImGui::CollapsingHeader("Cloud Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+
+        ImGui::Spacing();
+        ImGui::BeginGroup();
+        ImGui::BeginChild("CloudBox", ImVec2(ImGui::GetContentRegionAvail().x, 0),
+                          ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Borders);
+
+        ImGui::Checkbox("Enable Shadows", &fakebool);
+        ImGui::SliderFloat("Exposure", &fakefloat, 0.0f, 5.0f);
+        ImGui::SliderInt("Samples", &fakeint, 1, 256);
+
+        ImGui::EndChild();
+        ImGui::EndGroup();
+        ImGui::Spacing();
+    }
+
+    // Performance Tools
+    if (ImGui::CollapsingHeader("Performance", ImGuiTreeNodeFlags_DefaultOpen)) {
+
+        ImGui::Spacing();
+        ImGui::BeginGroup();
+        ImGui::BeginChild("PerformanceBox", ImVec2(ImGui::GetContentRegionAvail().x, 0),
+                          ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Borders);
+
+        ImGui::Text("FPS: %d", (int)(1 / state.dtime));
+        ImGui::Text("Frametime: %.2f ms", state.dtime * 1000);
+
+        ImGui::EndChild();
+        ImGui::EndGroup();
+        ImGui::Spacing();
+    }
+
+    // Finish
     ImGui::End();
 
-    // UI End
+    // Render
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
