@@ -34,5 +34,5 @@ struct State {
     // Resolution
     int screenWidth{800};
     int screenHeight{600};
-    float cloudScale{0.1f};
+    float cloudScale{0.5f};
 };

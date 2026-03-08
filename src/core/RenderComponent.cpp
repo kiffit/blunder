@@ -111,7 +111,7 @@ void RenderComponent::init(State &state) {
     cloudScaleLast = state.cloudScale;
     recreateRenderTargets(state, fbW, fbH);
 
-    // Optional: disable vsync
+    // Optional: enable vsync
     // glfwSwapInterval(0);
 
     // Initialize imgui
@@ -133,6 +133,7 @@ void RenderComponent::update(State &state) {
     // Reload textures if cloud scale changes
     if (state.cloudScale != cloudScaleLast) {
         recreateRenderTargets(state, state.screenWidth, state.screenHeight);
+        cloudScaleLast = state.cloudScale;
     }
 
     int cloudW = int(state.screenWidth * state.cloudScale);
@@ -220,7 +221,7 @@ void updateImgui(State &state) {
     ImGui::SetNextWindowSize(ImVec2(sidebar_width, 0), ImGuiCond_Always);
 
     //  Flags, for keeping it a panel
-    ImGuiWindowFlags flags = ImGuiWindowFlags_AlwaysAutoResize;
+    ImGuiWindowFlags flags = ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove;
 
     // Panel begin
     ImGui::Begin("Blunder Options", nullptr, flags);
@@ -233,7 +234,7 @@ void updateImgui(State &state) {
         ImGui::BeginChild("CloudBox", ImVec2(ImGui::GetContentRegionAvail().x, 0),
                           ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Borders);
 
-        ImGui::SliderFloat("Resolution Scale", &state.cloudScale, 0.01f, 1.0f);
+        ImGui::SliderFloat("Resolution Scale", &state.cloudScale, 0.1f, 1.0f, "%.2f");
 
         ImGui::EndChild();
         ImGui::EndGroup();
@@ -252,7 +253,7 @@ void updateImgui(State &state) {
         ImGui::Text("FPS: %d", (int)(1 / state.dtime));
         ImGui::Text("Frametime: %.2f ms", state.dtime * 1000);
         ImGui::Text("Viewport: (%d, %d)", state.screenWidth, state.screenHeight);
-        ImGui::Text("Cloud Size: (%d, %d)", (int)(state.screenWidth * state.cloudScale), (int)(state.screenHeight * state.cloudScale));
+        ImGui::Text("Clouds: (%d, %d)", (int)(state.screenWidth * state.cloudScale), (int)(state.screenHeight * state.cloudScale));
 
         ImGui::SeparatorText("Camera");
         ImGui::Text("Position: (%.2f, %.2f, %.2f)", state.cameraPosition.x, state.cameraPosition.y, state.cameraPosition.z);

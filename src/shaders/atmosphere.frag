@@ -18,7 +18,7 @@ void main()
     float cloud = texture(uCloudTex, vUV).r;
 
     // Blend clouds over sky
-    vec3 color = mix(sky, vec3(1.0), cloud);
+    vec3 color = mix(sky, vec3(1.0), cloud.r);
 
     FragColor = vec4(color, 1.0);
 }

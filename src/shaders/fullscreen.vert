@@ -2,11 +2,10 @@
 
 out vec2 vUV;
 
-void main()
-{
+void main() {
     vec2 pos = vec2(
-        (gl_VertexID == 2) ?  3.0 : -1.0,
-        (gl_VertexID == 1) ?  3.0 : -1.0
+        (gl_VertexID == 1) ? 3.0 : -1.0,
+        (gl_VertexID == 2) ? 3.0 : -1.0
     );
 
     vUV = pos * 0.5 + 0.5;
