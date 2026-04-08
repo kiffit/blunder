@@ -29,5 +29,6 @@ void main()
 
     float circle = 1 - smoothstep(radius, radius + edge, dist);
 
-    imageStore(cloudImage, id, vec4(circle, circle/2, 0, 1.0));
+    // imageStore(cloudImage, id, vec4(circle, circle/2, 0, 1.0));
+    imageStore(cloudImage, id, vec4(0));
 }

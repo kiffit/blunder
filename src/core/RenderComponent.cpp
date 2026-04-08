@@ -3,6 +3,9 @@
 // std::max
 #include <algorithm>
 
+// GLM functions
+#include <glm/glm.hpp>
+
 // imgui imports
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
@@ -139,9 +142,17 @@ void RenderComponent::update(State &state) {
     int cloudW = int(state.screenWidth * state.cloudScale);
     int cloudH = int(state.screenHeight * state.cloudScale);
 
+    // Stuff for later
+    float aspect = float(state.screenWidth) / float(state.screenHeight);
+    float tanHalfFov = glm::tan(glm::radians(state.fov) * 0.5f);
+
     // Clouds
     state.cloudShader.use();
     state.cloudShader.setFloat("uTime", state.utime);
+    state.cloudShader.setVec3("uPosition", state.cameraPosition.x, state.cameraPosition.y, state.cameraPosition.z);
+    state.cloudShader.setVec3("uViewDir", state.viewDir.x, state.viewDir.y, state.viewDir.z);
+    state.cloudShader.setFloat("uAspect", aspect);
+    state.cloudShader.setFloat("uTanHalfFov", tanHalfFov);
 
     glBindImageTexture(0, state.cloudTex, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
     glDispatchCompute((cloudW + 7) / 8, (cloudH + 7) / 8, 1);
@@ -156,7 +167,14 @@ void RenderComponent::update(State &state) {
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, state.cloudTex);
+
     state.atmosphereShader.setInt("uCloudTex", 0);
+    state.atmosphereShader.setVec3("uPosition", state.cameraPosition.x, state.cameraPosition.y, state.cameraPosition.z);
+    state.atmosphereShader.setVec3("uViewDir", state.viewDir.x, state.viewDir.y, state.viewDir.z);
+    state.atmosphereShader.setFloat("uAspect", aspect);
+    state.atmosphereShader.setFloat("uTanHalfFov", tanHalfFov);
+    state.atmosphereShader.setFloat("uSunAngle", state.sunAngle);
+    state.atmosphereShader.setInt("uSamples", state.atmosphereSamples);
 
     glBindVertexArray(state.fullscreenVAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -226,6 +244,22 @@ void updateImgui(State &state) {
     // Panel begin
     ImGui::Begin("Blunder Options", nullptr, flags);
 
+    // Atmosphere Settings
+    if (ImGui::CollapsingHeader("Atmosphere Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
+
+        ImGui::Spacing();
+        ImGui::BeginGroup();
+        ImGui::BeginChild("AtmosphereBox", ImVec2(ImGui::GetContentRegionAvail().x, 0),
+                          ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Borders);
+
+        ImGui::SliderInt("Samples", &state.atmosphereSamples, 1, 16);
+        ImGui::SliderFloat("Sun Angle", &state.sunAngle, 0, 180, "%.2f°");
+
+        ImGui::EndChild();
+        ImGui::EndGroup();
+        ImGui::Spacing();
+    }
+
     // Cloud Settings
     if (ImGui::CollapsingHeader("Cloud Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
 
@@ -235,6 +269,7 @@ void updateImgui(State &state) {
                           ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Borders);
 
         ImGui::SliderFloat("Resolution Scale", &state.cloudScale, 0.1f, 1.0f, "%.2f");
+        ImGui::SliderFloat("FOV", &state.fov, 30.f, 120.0f, "%.2f");
 
         ImGui::EndChild();
         ImGui::EndGroup();
@@ -257,8 +292,7 @@ void updateImgui(State &state) {
 
         ImGui::SeparatorText("Camera");
         ImGui::Text("Position: (%.2f, %.2f, %.2f)", state.cameraPosition.x, state.cameraPosition.y, state.cameraPosition.z);
-        ImGui::Text("Pitch: %.2f", state.pitch);
-        ImGui::Text("Yaw: %.2f", state.yaw);
+        ImGui::Text("View Direction: (%.2f, %.2f, %.2f)", state.viewDir.x, state.viewDir.y, state.viewDir.z);
 
         ImGui::EndChild();
         ImGui::EndGroup();

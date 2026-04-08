@@ -18,6 +18,7 @@ class Shader {
     void setInt(const std::string &name, int v) const;
     void setFloat(const std::string &name, float v) const;
     void setVec2(const std::string &name, float x, float y) const;
+    void setVec3(const std::string &name, float x, float y, float z) const;
 
   private:
     std::string vPath, fPath, cPath;

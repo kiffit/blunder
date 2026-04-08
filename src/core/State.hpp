@@ -13,8 +13,8 @@ struct State {
     glm::vec3 cameraPosition{0, 0, 0};
 
     // View
-    float yaw{-90.f};
-    float pitch{0.f};
+    glm::vec3 viewDir{0, 0, 0};
+    float fov{90.f};
 
     // Timing
     float utime{0.f};
@@ -35,4 +35,9 @@ struct State {
     int screenWidth{800};
     int screenHeight{600};
     float cloudScale{0.5f};
+
+    // Atmosphere
+    int atmosphereSamples{4};
+    float sunAngle{30.f};
+    
 };
