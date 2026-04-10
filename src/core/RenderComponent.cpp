@@ -152,7 +152,20 @@ void RenderComponent::update(State &state) {
     state.cloudShader.setVec3("uPosition", state.cameraPosition.x, state.cameraPosition.y, state.cameraPosition.z);
     state.cloudShader.setVec3("uViewDir", state.viewDir.x, state.viewDir.y, state.viewDir.z);
     state.cloudShader.setFloat("uAspect", aspect);
+    state.cloudShader.setFloat("uSunAngle", state.sunAngle);
     state.cloudShader.setFloat("uTanHalfFov", tanHalfFov);
+
+    state.cloudShader.setInt("STEPS", state.cloudSteps);
+    state.cloudShader.setInt("LIGHT_STEPS", state.cloudLightSteps);
+
+    state.cloudShader.setFloat("DENSITY_SCALE", state.cloudDensityScale);
+    state.cloudShader.setFloat("ABSORPTION", state.cloudAbsorption);
+    state.cloudShader.setFloat("SCATTERING", state.cloudScattering);
+
+    state.cloudShader.setFloat("uCloudScale", state.cloudScaleFactor);
+    state.cloudShader.setFloat("uCloudDetail", state.cloudDetail);
+    state.cloudShader.setFloat("uCloudWarp", state.cloudWarp);
+    state.cloudShader.setFloat("uCover", state.cloudCover);
 
     glBindImageTexture(0, state.cloudTex, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA16F);
     glDispatchCompute((cloudW + 7) / 8, (cloudH + 7) / 8, 1);
@@ -175,6 +188,7 @@ void RenderComponent::update(State &state) {
     state.atmosphereShader.setFloat("uTanHalfFov", tanHalfFov);
     state.atmosphereShader.setFloat("uSunAngle", state.sunAngle);
     state.atmosphereShader.setInt("uSamples", state.atmosphereSamples);
+    state.atmosphereShader.setFloat("uCloudMix", state.atmosphereMix);
 
     glBindVertexArray(state.fullscreenVAO);
     glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -244,7 +258,7 @@ void updateImgui(State &state) {
     // Panel begin
     ImGui::Begin("Blunder Options", nullptr, flags);
 
-    // Atmosphere Settings
+    // ===================== ATMOSPHERE SETTINGS =====================
     if (ImGui::CollapsingHeader("Atmosphere Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
 
         ImGui::Spacing();
@@ -252,15 +266,23 @@ void updateImgui(State &state) {
         ImGui::BeginChild("AtmosphereBox", ImVec2(ImGui::GetContentRegionAvail().x, 0),
                           ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Borders);
 
+        ImGui::SeparatorText("Sampling");
         ImGui::SliderInt("Samples", &state.atmosphereSamples, 1, 16);
+
+        ImGui::Spacing();
+        ImGui::SeparatorText("Sun Lighting");
         ImGui::SliderFloat("Sun Angle", &state.sunAngle, 0, 180, "%.2f°");
+
+        ImGui::Spacing();
+        ImGui::SeparatorText("Mixing");
+        ImGui::SliderFloat("Cloud Ambience Passthrough", &state.atmosphereMix, 0.0f, 1.0f);
 
         ImGui::EndChild();
         ImGui::EndGroup();
         ImGui::Spacing();
     }
 
-    // Cloud Settings
+    // ===================== CLOUD SETTINGS =====================
     if (ImGui::CollapsingHeader("Cloud Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
 
         ImGui::Spacing();
@@ -268,15 +290,30 @@ void updateImgui(State &state) {
         ImGui::BeginChild("CloudBox", ImVec2(ImGui::GetContentRegionAvail().x, 0),
                           ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY | ImGuiChildFlags_Borders);
 
+        ImGui::SeparatorText("Performance");
         ImGui::SliderFloat("Resolution Scale", &state.cloudScale, 0.1f, 1.0f, "%.2f");
-        ImGui::SliderFloat("FOV", &state.fov, 30.f, 120.0f, "%.2f");
+        ImGui::SliderInt("Steps", &state.cloudSteps, 8, 144);
+        ImGui::SliderInt("Light Steps", &state.cloudLightSteps, 4, 64);
+
+        ImGui::Spacing();
+        ImGui::SeparatorText("Density");
+        ImGui::SliderFloat("Density Scale", &state.cloudDensityScale, 0.01f, 0.2f);
+        ImGui::SliderFloat("Absorption", &state.cloudAbsorption, 0.01f, 1.0f);
+        ImGui::SliderFloat("Scattering", &state.cloudScattering, 0.001f, 0.2f);
+
+        ImGui::Spacing();
+        ImGui::SeparatorText("Noise / Shape");
+        ImGui::SliderFloat("Cloud Scale", &state.cloudScaleFactor, 0.000001f, 0.0001f, "%.6f");
+        ImGui::SliderFloat("Cloud Detail", &state.cloudDetail, 1.0f, 10.0f, "%.0f");
+        ImGui::SliderFloat("Cloud Warp", &state.cloudWarp, 0.0f, 10.0f);
+        ImGui::SliderFloat("Cloud Coverage", &state.cloudCover, 0.0f, 1.0f);
 
         ImGui::EndChild();
         ImGui::EndGroup();
         ImGui::Spacing();
     }
 
-    // Performance Tools
+    // ===================== SCENE METRICS =====================
     if (ImGui::CollapsingHeader("Scene Metrics", ImGuiTreeNodeFlags_DefaultOpen)) {
 
         ImGui::Spacing();
@@ -290,7 +327,9 @@ void updateImgui(State &state) {
         ImGui::Text("Viewport: (%d, %d)", state.screenWidth, state.screenHeight);
         ImGui::Text("Clouds: (%d, %d)", (int)(state.screenWidth * state.cloudScale), (int)(state.screenHeight * state.cloudScale));
 
+        ImGui::Spacing();
         ImGui::SeparatorText("Camera");
+        ImGui::SliderFloat("FOV", &state.fov, 30.f, 120.0f, "%.2f");
         ImGui::Text("Position: (%.2f, %.2f, %.2f)", state.cameraPosition.x, state.cameraPosition.y, state.cameraPosition.z);
         ImGui::Text("View Direction: (%.2f, %.2f, %.2f)", state.viewDir.x, state.viewDir.y, state.viewDir.z);
 

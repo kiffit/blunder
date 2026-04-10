@@ -32,12 +32,25 @@ struct State {
     GLuint fullscreenVAO{0};
 
     // Resolution
-    int screenWidth{800};
-    int screenHeight{600};
-    float cloudScale{0.5f};
+    int screenWidth{1200};
+    int screenHeight{800};
+    float cloudScale{0.20f};
 
     // Atmosphere
     int atmosphereSamples{4};
     float sunAngle{30.f};
-    
+    float atmosphereMix = 0.6f;
+
+    // Clouds (tunable)
+    int cloudSteps = 36;
+    int cloudLightSteps = 16;
+
+    float cloudDensityScale = 0.06f;
+    float cloudAbsorption = 0.2f;
+    float cloudScattering = 0.05f;
+
+    float cloudScaleFactor = 0.00002f;
+    float cloudDetail = 10.0f;
+    float cloudWarp = 4.0f;
+    float cloudCover = 0.5f;
 };

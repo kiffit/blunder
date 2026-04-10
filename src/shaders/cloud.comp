@@ -3,32 +3,239 @@
 layout(local_size_x = 8, local_size_y = 8) in;
 layout(rgba16f, binding = 0) uniform image2D cloudImage;
 
+// Camera / screen
+uniform vec3 uViewDir;
+uniform float uAspect;
+uniform float uTanHalfFov;
+uniform vec3 uPosition;
 
+// Time
+uniform float uTime;
 
-void main()
-{
-    ivec2 id   = ivec2(gl_GlobalInvocationID.xy);
-    ivec2 size = imageSize(cloudImage);
+// Sun
+uniform float uSunAngle;
 
-    if (id.x >= size.x || id.y >= size.y)
-        return;
+// Clouds
+uniform int STEPS;
+uniform int LIGHT_STEPS;
 
-    vec2 uv = (vec2(id) + 0.5) / vec2(size);
+uniform float DENSITY_SCALE;
+uniform float ABSORPTION;
+uniform float SCATTERING;
 
-    // ---- circle grid ----
-    float tiles = 8.0;                    // number of circles per axis
-    vec2  cell  = fract(uv * tiles);      // local cell UV (0-1)
-    vec2  center = vec2(0.5);
+uniform float uCloudScale;
+uniform float uCloudDetail;
+uniform float uCloudWarp;
 
-    vec2 aspect = vec2(float(size.x) / float(size.y), 1.0);
-    vec2 p = (cell - center) * aspect;
-    float dist = length(p);
+// Coverage (0 = none, 1 = full)
+uniform float uCover;
 
-    float radius = 0.35;
-    float edge   = 0.01;
+// --------------------
+// Constants
+// --------------------
+const vec3 CLOUD_COLOR = vec3(1.0);
+const vec3 SUN_LUMINANCE = vec3(1.0, 0.98, 0.95) * 22.0;
 
-    float circle = 1 - smoothstep(radius, radius + edge, dist);
+// --------------------
+// Noise
+// --------------------
+float hash31(vec3 p) {
+  p = fract(p * 0.1031);
+  p += dot(p, p.yzx + 33.33);
+  return fract((p.x + p.y) * p.z);
+}
 
-    // imageStore(cloudImage, id, vec4(circle, circle/2, 0, 1.0));
-    imageStore(cloudImage, id, vec4(0));
+float noise3D(vec3 x) {
+  vec3 i = floor(x);
+  vec3 f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+
+  float n000 = hash31(i + vec3(0, 0, 0));
+  float n100 = hash31(i + vec3(1, 0, 0));
+  float n010 = hash31(i + vec3(0, 1, 0));
+  float n110 = hash31(i + vec3(1, 1, 0));
+
+  float n001 = hash31(i + vec3(0, 0, 1));
+  float n101 = hash31(i + vec3(1, 0, 1));
+  float n011 = hash31(i + vec3(0, 1, 1));
+  float n111 = hash31(i + vec3(1, 1, 1));
+
+  float nx00 = mix(n000, n100, f.x);
+  float nx10 = mix(n010, n110, f.x);
+  float nx01 = mix(n001, n101, f.x);
+  float nx11 = mix(n011, n111, f.x);
+
+  float nxy0 = mix(nx00, nx10, f.y);
+  float nxy1 = mix(nx01, nx11, f.y);
+
+  return mix(nxy0, nxy1, f.z);
+}
+
+float fbm3D(vec3 p) {
+  float v = 0.0;
+  float a = 0.5;
+
+  int oct = int(uCloudDetail);
+
+  for (int i = 0; i < 10; i++) {
+    if (i >= oct) break;
+    v += a * noise3D(p);
+    p *= 2.02;
+    a *= 0.5;
+  }
+
+  return v;
+}
+
+vec3 domainWarp(vec3 p) {
+  vec3 q;
+  q.x = fbm3D(p + vec3(5.2, 1.3, 7.1));
+  q.y = fbm3D(p + vec3(8.3, 2.8, 3.5));
+  q.z = fbm3D(p + vec3(2.1, 9.7, 4.8));
+  return p + (q - 0.5) * uCloudWarp;
+}
+
+// --------------------
+// Phase
+// --------------------
+float hgPhase(float cosTheta, float g) {
+  float g2 = g * g;
+  return (1.0 - g2) / pow(1.0 + g2 - 2.0 * g * cosTheta, 1.5) /
+         (4.0 * 3.14159265);
+}
+
+// --------------------
+// Ray
+// --------------------
+vec3 getRayDir(vec2 uv) {
+  vec2 s = uv * 2.0 - 1.0;
+  s.x *= uAspect * uTanHalfFov;
+  s.y *= uTanHalfFov;
+
+  vec3 f = normalize(uViewDir);
+  vec3 up = vec3(0, 0, 1);
+  vec3 r = normalize(cross(f, up));
+  up = cross(r, f);
+
+  return normalize(f + r * s.x + up * s.y);
+}
+
+// --------------------
+// Sun
+// --------------------
+vec3 getSunDir() {
+  float a = radians(uSunAngle);
+  return normalize(vec3(0.25, cos(a), sin(a)));
+}
+
+// --------------------
+// Density (COVER FIXED)
+// --------------------
+float density(vec3 p) {
+  if (uCover <= 0.001)
+    return 0.0;
+
+  vec3 wp = domainWarp(p * uCloudScale);
+
+  float n = fbm3D(wp);
+
+  float cover = clamp(uCover, 0.0, 1.0);
+
+  float low = mix(0.60, 0.35, cover);
+  float high = mix(0.80, 0.55, cover);
+
+  float shape = smoothstep(low, high, n);
+
+  float h = (p.z - 15000.0) / 10000.0;
+
+  float altitudeBias = exp(-pow((h - 0.5) * 1.8, 2.0));
+  float verticalFalloff = 1.0 / (1.0 + 0.25 * (h - 0.5) * (h - 0.5));
+
+  float heightMask = altitudeBias * verticalFalloff;
+
+  float detail = mix(0.7, 1.3, altitudeBias);
+
+  float d = shape * heightMask * detail * DENSITY_SCALE * cover;
+
+  return d;
+}
+
+// --------------------
+// Light march
+// --------------------
+float lightTransmittance(vec3 p, vec3 sunDir) {
+  float t = 0.0;
+  float res = 1.0;
+
+  for (int i = 0; i < LIGHT_STEPS; i++) {
+    vec3 sp = p + sunDir * t;
+    float d = density(sp);
+
+    res *= exp(-d * 70.0 * ABSORPTION);
+    t += 140.0;
+  }
+
+  return res;
+}
+
+// --------------------
+// Raymarch
+// --------------------
+vec4 marchCloud(vec3 ro, vec3 rd, vec3 sunDir) {
+
+  float tMax = 120000.0;
+
+  vec3 col = vec3(0.0);
+  float trans = 1.0;
+
+  float t = 0.0;
+
+  for (int i = 0; i < STEPS; i++) {
+
+    float prevT = t;
+    t = pow(float(i) / float(STEPS), 1.1) * tMax;
+    float dt = t - prevT;
+
+    vec3 p = ro + rd * t;
+
+    float d = density(p);
+
+    if (d > 0.0008) {
+      float light = lightTransmittance(p, sunDir);
+      float phase = hgPhase(dot(rd, sunDir), 0.72);
+
+      vec3 scatter = CLOUD_COLOR * SUN_LUMINANCE * light * phase * SCATTERING;
+
+      float atten = exp(-d * dt * ABSORPTION);
+
+      col += trans * scatter * d * dt;
+      trans *= atten;
+
+      if (trans < 0.01) break;
+    }
+  }
+
+  return vec4(col, 1.0 - trans);
+}
+
+// --------------------
+// Main
+// --------------------
+void main() {
+  ivec2 id = ivec2(gl_GlobalInvocationID.xy);
+  ivec2 size = imageSize(cloudImage);
+
+  if (id.x >= size.x || id.y >= size.y)
+    return;
+
+  vec2 uv = (vec2(id) + 0.5) / vec2(size);
+
+  vec3 rd = getRayDir(uv);
+  vec3 ro = uPosition;
+
+  vec3 sunDir = getSunDir();
+
+  vec4 c = marchCloud(ro, rd, sunDir);
+
+  imageStore(cloudImage, id, c);
 }

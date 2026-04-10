@@ -5,7 +5,7 @@
 bool canReload = true;
 float yaw{90.f};
 float pitch{30.f};
-float speed{5.0f};
+float speed{5000.0f};
 float sensitivity{0.1f};
 
 void InputComponent::init(State &state) {
@@ -107,10 +107,10 @@ void InputComponent::update(State &state) {
         state.cameraPosition -= forward * speed * state.dtime;
 
     if (glfwGetKey(state.window, GLFW_KEY_D) == GLFW_PRESS)
-        state.cameraPosition += right * speed * state.dtime;
+        state.cameraPosition -= right * speed * state.dtime;
 
     if (glfwGetKey(state.window, GLFW_KEY_A) == GLFW_PRESS)
-        state.cameraPosition -= right * speed * state.dtime;
+        state.cameraPosition += right * speed * state.dtime;
 
     if (glfwGetKey(state.window, GLFW_KEY_SPACE) == GLFW_PRESS)
         state.cameraPosition.z += speed * state.dtime;
